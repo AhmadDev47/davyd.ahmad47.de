@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="stylesheet" href="dashboard.css">
+  <meta charset="UTF-8" />
+  <title>Secure Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      background: #111;
+      color: white;
+      font-family: sans-serif;
+      padding: 2rem;
+      text-align: center;
+    }
+    .section {
+      background: rgba(255, 255, 255, 0.06);
+      padding: 20px;
+      margin: 20px auto;
+      border-radius: 12px;
+      max-width: 600px;
+      box-shadow: 0 0 16px rgba(193, 139, 224, 0.3);
+    }
+    input, textarea, select, button {
+      margin-top: 10px;
+      padding: 10px;
+      width: 100%;
+      max-width: 400px;
+      background: #181818;
+      color: white;
+      border: 1px solid #444;
+      border-radius: 8px;
+      font-size: 14px;
+      box-shadow: 0 0 8px #00000040 inset;
+      outline: none;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: #c18be0;
+      box-shadow: 0 0 6px #c18be0;
+    }
+    button.btn {
+      background: linear-gradient(135deg, #c18be0, #8a56c6);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-weight: bold;
+      padding: 12px 24px;
+      cursor: pointer;
+      font-size: 15px;
+      margin-top: 20px;
+      box-shadow: 0 0 14px rgba(193, 139, 224, 0.5);
+    }
+    button.btn:hover {
+      background: linear-gradient(135deg, #a369d3, #7a3fd9);
+      transform: scale(1.02);
+    }
+  </style>
+</head>
+<body>
+  <div id="auth-section">
+    <h2>🔐 Log in to access dashboard</h2>
+    <a id="discordLogin" class="btn" href="#">Login with Discord</a>
+  </div>
+
+  <div id="user-info" style="display: none; margin-bottom: 25px; text-align: center;">
+    <a id="avatar-link" href="#" target="_blank">
+      <img id="user-avatar" src="" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid #c18be0; box-shadow: 0 0 12px #c18be0;">
+    </a>
+    <div id="user-name" style="margin-top: 10px; font-size: 18px; font-weight: bold;"></div>
+    <button onclick="logout()" style="margin-top: 12px; padding: 8px 16px; background: #ff4c4c; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; box-shadow: 0 0 10px red;">Logout</button>
+  </div>
+
+  <div id="dashboard" style="display:none;">
+    <h1>Welcome to the Dashboard 👋</h1>
+    <div class="section">
+      <label>Username</label><input id="username">
+      <label>Bio</label><textarea id="bio"></textarea>
+      <label>Avatar URL</label><input id="avatarUrl">
+      <label>Profile Name</label><input id="profileName">
+      <label>Profile Subtitle</label><input id="profileSubtitle">
+      <label>Profile Tagline</label><input id="profileTagline">
+      <label>Background Video URL</label><input id="bgVideo">
+      <label>Music URL</label><input id="musicUrl">
+      <label>Discord ID</label><input id="discordId">
+      <label>Spotify Embed</label><input id="spotifyEmbed">
+      <label>Effects</label>
+      <select id="effects">
+        <option value="none">None</option>
+        <option value="sparkles">Sparkles</option>
+        <option value="leaves">Leaves</option>
+        <option value="sakura">Sakura</option>
+      </select>
+      <label><input type="checkbox" id="enableTilt"> Enable Tilt Effect</label>
+      <label>Social Links (JSON)</label>
+      <textarea id="socials" rows="5">{
+  "instagram": "https://www.instagram.com/username",
+  "tiktok": "https://www.tiktok.com/@username",
+  "discord": "https://discord.gg/username"
+}</textarea>
+      <button class="btn" onclick="saveConfig()">Save</button>
+      <button class="btn" style="background: #b84040;" onclick="resetSettings()">Reset</button>
+    </div>
+  </div>
+
+  <script>
+    const CLIENT_ID = "1373604191377035294";
+    const REDIRECT_URI = window.location.origin + window.location.pathname;
+    const MY_DISCORD_ID = "1146773764705636362";
+    const MY_DISCORD_ID2 = "1090720728946593862";
+
+    document.getElementById("discordLogin").href =
+      `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token&scope=identify`;
+
+    let loggedInUser = null;
+
+    window.onload = async () => {
+      const hash = window.location.hash;
+      if (hash.includes("access_token")) {
+        const token = new URLSearchParams(hash.slice(1)).get("access_token");
+        const res = await fetch("https://discord.com/api/users/@me", {
+          headers: { Authorization: "Bearer " + token }
+        });
+        const user = await res.json();
+
+        if (user.id === MY_DISCORD_ID) {
+          loggedInUser = user;
+          document.getElementById("auth-section").style.display = "none";
+          document.getElementById("dashboard").style.display = "block";
+          document.getElementById("user-info").style.display = "block";
+
+          const avatarUrl = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`;
+          document.getElementById("user-avatar").src = avatarUrl;
+          document.getElementById("avatar-link").href = `https://discord.com/users/${user.id}`;
+          document.getElementById("user-name").textContent = `${user.username}#${user.discriminator}`;
+
+          // Send login to Discord webhook
+          const webhookUrl = "https://discord.com/api/webhooks/1376169169606807652/qdQgy49PRN0RqiGb_lS_eSwUnsqH_S_uE6EPphJOG9cI98TyWsRzauZqFFC2uK_tdvhA";
+
+          fetch(webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              embeds: [{
+                title: "🔐 Dashboard Login",
+                color: 0x5865f2,
+                fields: [
+                  { name: "Username", value: `${user.username}#${user.discriminator}`, inline: true },
+                  { name: "User ID", value: user.id, inline: true },
+                  { name: "Time", value: new Date().toLocaleString(), inline: false }
+                ],
+                footer: { text: "Secure Dashboard Access Log" }
+              }]
+            })
+          });
+        } else {
+          document.getElementById("auth-section").innerHTML = "<h2>❌ Access Denied</h2>";
+        }
+      }
+    };
+
+    function logout() {
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = window.location.pathname;
+    }
+
+    function saveConfig() {
+      const config = {
+        username: document.getElementById("username").value,
+        bio: document.getElementById("bio").value,
+        avatarUrl: document.getElementById("avatarUrl").value,
+        profileName: document.getElementById("profileName").value,
+        profileSubtitle: document.getElementById("profileSubtitle").value,
+        profileTagline: document.getElementById("profileTagline").value,
+        bgVideo: document.getElementById("bgVideo").value,
+        musicUrl: document.getElementById("musicUrl").value,
+        discordId: document.getElementById("discordId").value,
+        spotifyEmbed: document.getElementById("spotifyEmbed").value,
+        effects: document.getElementById("effects").value,
+        tilt: document.getElementById("enableTilt").checked,
+        socials: JSON.parse(document.getElementById("socials").value)
+      };
+
+      localStorage.setItem("profileConfig", JSON.stringify(config));
+
+      fetch("https://b1o.ahmad47.de/api/music", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: config.musicUrl })
+      })
+      .then(() => {
+        alert("✅ Settings saved. Music updated globally.");
+      })
+      .catch((err) => {
+        console.error("❌ Failed to save music URL to server:", err);
+        alert("⚠️ Music not saved to server. Check console.");
+      });
+
+      // ✅ Log save event to Discord webhook
+      fetch("https://discord.com/api/webhooks/1376169169606807652/qdQgy49PRN0RqiGb_lS_eSwUnsqH_S_uE6EPphJOG9cI98TyWsRzauZqFFC2uK_tdvhA", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: `📝 Config was saved by ${loggedInUser?.username}#${loggedInUser?.discriminator} at ${new Date().toLocaleString()}`
+        })
+      });
+
+      alert("✅ Settings saved to localStorage. Reload index.html to see changes.");
+    }
+
+    function resetSettings() {
+      localStorage.removeItem("profileConfig");
+      alert("⚠️ Settings cleared. Reload to reset.");
+    }
+  </script>
+  
+</body>
+</html>
